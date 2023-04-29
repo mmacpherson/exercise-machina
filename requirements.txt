@@ -1,0 +1,7 @@
+# nb-black
+opencv-python
+opencv-python-headless
+pandas
+plotnine
+pytesseract
+python-dotenv
