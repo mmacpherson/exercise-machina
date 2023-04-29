@@ -1,0 +1,22 @@
+[project]
+name = "exercise-machina"
+version = "0.1.0"
+description = "Reverse-engineering Rogue Echo Bike firmware equations from OCR dataset"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "polars",
+    "scipy",
+    "matplotlib",
+    "marimo>=0.18",
+    "lets-plot>=4.0",
+]
+
+[dependency-groups]
+dev = ["pre-commit", "ruff"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+ignore = ["E741"]

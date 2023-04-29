@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Echo Bike Conversion Table</title>
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/dseg7-classic/400.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/dseg7-classic/700.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #4cc9f0;
+    --accent-dim: #264653;
+    --lcd-bg: #c5cfa0;
+    --lcd-ghost: #b8c292;
+    --lcd-text: #2a2a2a;
+    --bezel: #2c2c2c;
+    --red: #ef476f;
+    --orange: #f4a261;
+    --blue: #4895ef;
+    --green: #06d6a0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+    padding: 1rem 1.5rem;
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .header h1 { font-size: 1.1rem; font-weight: 600; }
+  .header .subtitle { color: var(--text-dim); font-size: 0.75rem; }
+
+  /* ── LCD Summary ───────────────────────────────────── */
+  .bezel {
+    background: var(--bezel);
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    margin-bottom: 1rem;
+  }
+
+  .bezel-brand {
+    text-align: center;
+    color: #999;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .lcd {
+    background: var(--lcd-bg);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .lcd-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0.5rem;
+    align-items: end;
+  }
+
+  .lcd-field { text-align: center; }
+
+  .lcd-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #5a6040;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .lcd-value-wrap {
+    position: relative;
+    display: inline-block;
+    font-family: 'DSEG7 Classic', monospace;
+  }
+
+  .lcd-ghost {
+    color: var(--lcd-ghost);
+    font-size: 1.8rem;
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .lcd-value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--lcd-text);
+    font-size: 1.8rem;
+    font-weight: 700;
+  }
+
+  .lcd-unit {
+    font-family: -apple-system, sans-serif;
+    font-size: 0.65rem;
+    color: #5a6040;
+    font-weight: 600;
+  }
+
+  /* ── Controls Panel ────────────────────────────────── */
+  .controls {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #333;
+    margin-bottom: 1rem;
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .control-row:last-child { margin-bottom: 0; }
+
+  .control-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    min-width: 5.5rem;
+    flex-shrink: 0;
+  }
+
+  .cadence-slider {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #333;
+    border-radius: 3px;
+    outline: none;
+  }
+
+  .cadence-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  .slider-value {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    min-width: 5em;
+    text-align: right;
+  }
+
+  .presets {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .preset-btn {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .preset-btn:hover { background: #1e3050; border-color: var(--accent); }
+  .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); }
+
+  .rounding-btns {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .rounding-btn {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .rounding-btn:hover { background: #1e3050; border-color: var(--accent); }
+  .rounding-btn.active { background: var(--accent-dim); border-color: var(--accent); }
+
+  /* ── Table ──────────────────────────────────────────── */
+  .table-panel {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #333;
+  }
+
+  .table-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .table-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .print-btn {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .print-btn:hover { background: #1e3050; border-color: var(--accent); }
+
+  .conv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .conv-table th {
+    text-align: right;
+    padding: 0.35rem 0.75rem;
+    border-bottom: 2px solid #444;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .conv-table td {
+    text-align: right;
+    padding: 0.3rem 0.75rem;
+    border-bottom: 1px solid #2a2a3e;
+  }
+
+  .conv-table tr:hover td {
+    background: rgba(76, 201, 240, 0.06);
+  }
+
+  .conv-table .col-cal { color: var(--orange); font-weight: 600; }
+  .conv-table .col-dist { color: var(--blue); }
+  .conv-table .col-time { color: var(--green); }
+
+  .table-scroll {
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .table-scroll::-webkit-scrollbar { width: 6px; }
+  .table-scroll::-webkit-scrollbar-track { background: var(--surface); }
+  .table-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+  /* ── Footer ────────────────────────────────────────── */
+  .footer {
+    margin-top: 1rem;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .footer a:hover { text-decoration: underline; }
+
+  /* ── Mobile ─────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    body { padding: 0.5rem; }
+    .lcd-row { grid-template-columns: 1fr 1fr; }
+    .lcd-ghost, .lcd-value { font-size: 1.4rem; }
+    .control-row { flex-wrap: wrap; }
+    .control-label { min-width: auto; }
+  }
+
+  /* ── Print ──────────────────────────────────────────── */
+  @media print {
+    body {
+      background: white;
+      color: black;
+      padding: 0.5cm;
+      font-size: 10pt;
+    }
+
+    .bezel, .controls, .footer, .print-btn { display: none; }
+
+    .app { max-width: 100%; }
+
+    .header h1 { font-size: 14pt; color: black; }
+    .header .subtitle { color: #666; font-size: 9pt; }
+
+    .table-panel {
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    .table-title { color: #666; }
+
+    .table-scroll {
+      max-height: none;
+      overflow: visible;
+    }
+
+    .conv-table {
+      font-size: 9pt;
+    }
+
+    .conv-table th {
+      color: #333;
+      border-bottom: 2px solid #333;
+      background: none;
+      font-size: 8pt;
+    }
+
+    .conv-table td {
+      border-bottom: 0.5pt solid #ccc;
+      padding: 0.15rem 0.5rem;
+    }
+
+    .conv-table .col-cal { color: #c44; font-weight: 700; }
+    .conv-table .col-dist { color: #248; }
+    .conv-table .col-time { color: #262; }
+
+    .conv-table tr:hover td { background: none; }
+
+    .print-header {
+      display: block !important;
+      margin-bottom: 0.3cm;
+      font-size: 9pt;
+      color: #666;
+    }
+  }
+
+  .print-header { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Echo Bike Conversion Table</h1>
+    <span class="subtitle">Calories &harr; Distance &harr; Time at constant effort</span>
+  </div>
+
+  <!-- LCD summary -->
+  <div class="bezel">
+    <div class="bezel-brand">Rogue</div>
+    <div class="lcd">
+      <div class="lcd-row">
+        <div class="lcd-field">
+          <div class="lcd-label">Cadence</div>
+          <div class="lcd-value-wrap">
+            <span class="lcd-ghost">888</span>
+            <span class="lcd-value" id="lcd-cadence">55</span>
+          </div>
+          <div class="lcd-unit">rpm</div>
+        </div>
+        <div class="lcd-field">
+          <div class="lcd-label">Speed</div>
+          <div class="lcd-value-wrap">
+            <span class="lcd-ghost">88.8</span>
+            <span class="lcd-value" id="lcd-speed">0.0</span>
+          </div>
+          <div class="lcd-unit">mph</div>
+        </div>
+        <div class="lcd-field">
+          <div class="lcd-label">Watts</div>
+          <div class="lcd-value-wrap">
+            <span class="lcd-ghost">888</span>
+            <span class="lcd-value" id="lcd-watts">0</span>
+          </div>
+          <div class="lcd-unit">W</div>
+        </div>
+        <div class="lcd-field">
+          <div class="lcd-label">Cal/hr</div>
+          <div class="lcd-value-wrap">
+            <span class="lcd-ghost">8888</span>
+            <span class="lcd-value" id="lcd-calhr">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="control-row">
+      <span class="control-label">Cadence</span>
+      <input type="range" class="cadence-slider" id="cadence-slider" min="20" max="89" value="55" step="1">
+      <span class="slider-value"><span id="cadence-display">55</span> RPM</span>
+      <div class="presets" id="cadence-presets">
+        <button class="preset-btn" data-rpm="30">Easy (30)</button>
+        <button class="preset-btn" data-rpm="45">Moderate (45)</button>
+        <button class="preset-btn active" data-rpm="55">Steady (55)</button>
+        <button class="preset-btn" data-rpm="70">Hard (70)</button>
+        <button class="preset-btn" data-rpm="85">Sprint (85)</button>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="control-label">Cal step</span>
+      <div class="rounding-btns" id="calstep-btns">
+        <button class="rounding-btn active" data-calstep="5">5 Cal</button>
+        <button class="rounding-btn" data-calstep="10">10 Cal</button>
+        <button class="rounding-btn" data-calstep="25">25 Cal</button>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="control-label">Rounding</span>
+      <div class="rounding-btns" id="rounding-btns">
+        <button class="rounding-btn" data-rounding="exact">Exact</button>
+        <button class="rounding-btn active" data-rounding="nice">Nice</button>
+        <button class="rounding-btn" data-rounding="coarse">Coarse</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conversion table -->
+  <div class="table-panel">
+    <div class="table-header">
+      <div class="table-title">Conversion Table</div>
+      <button class="print-btn" id="print-btn">Print / PDF</button>
+    </div>
+    <div class="print-header" id="print-header"></div>
+    <div class="table-scroll">
+      <table class="conv-table">
+        <thead>
+          <tr>
+            <th>Calories</th>
+            <th>Distance (mi)</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Firmware equations reverse-engineered from Rogue Echo Bike LCD.
+    See <a href="../simulator/">simulator</a> for full computation trace.
+  </div>
+</div>
+
+<script>
+// ── Firmware Engine (matches simulator/index.html exactly) ──────────────────
+const WATTS_B = {2:155, 3:415, 4:825, 5:1505, 6:2425, 7:3835, 8:5495};
+const WATTS_N = {2:26, 3:41, 4:68, 5:92, 6:141, 7:166, 8:211};
+const TICK_PERIOD = 1.0006;  // seconds per firmware tick
+const CAL_K = 1195;          // firmware units per displayed calorie
+const DIST_DIVISOR = 360;    // speed_tenths per 0.01 mile
+
+function speedTenths(c) {
+  return Math.floor((c * 272) / 73);
+}
+
+function watts(c) {
+  if (c < 20) return 0;
+  const d = Math.floor(c / 10);
+  const r = c % 10;
+  const B = WATTS_B[d] || 0;
+  const N = WATTS_N[d] || 0;
+  return Math.floor((B + N * r) / 10);
+}
+
+// ── Rounding presets ────────────────────────────────────────────────────────
+// Each defines how to round the distance and time values for display.
+// Calories always step by the calStep (the primary axis).
+const ROUNDING = {
+  exact:  { distRound: 0.01, timeRound: 1  },
+  nice:   { distRound: 0.05, timeRound: 15 },
+  coarse: { distRound: 0.25, timeRound: 60 },
+};
+
+const CAL_STEP_CONFIG = {
+  5:  { maxCal: 200 },
+  10: { maxCal: 500 },
+  25: { maxCal: 500 },
+};
+
+// ── State ───────────────────────────────────────────────────────────────────
+let currentCadence = 55;
+let currentRounding = 'nice';
+let currentCalStep = 5;
+
+const $ = (id) => document.getElementById(id);
+
+// ── Conversion math ─────────────────────────────────────────────────────────
+function computeRates(c) {
+  const w = watts(c);
+  const st = speedTenths(c);
+  const speedMph = st / 10;
+  const calPerSec = w / (CAL_K * TICK_PERIOD);
+  const miPerSec = st / (DIST_DIVISOR * 100 * TICK_PERIOD);
+  const calPerHr = calPerSec * 3600;
+  const miPerHr = miPerSec * 3600;
+  return { w, st, speedMph, calPerSec, miPerSec, calPerHr, miPerHr };
+}
+
+function calToTicksDist(calTarget, w, st) {
+  if (w === 0) return { ticks: Infinity, dist: 0 };
+  const ticks = Math.ceil(calTarget * CAL_K / w);
+  const distHundredths = Math.floor(ticks * st / DIST_DIVISOR);
+  return { ticks, dist: distHundredths / 100 };
+}
+
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function roundTo(value, step) {
+  return Math.round(value / step) * step;
+}
+
+// ── LCD Update ──────────────────────────────────────────────────────────────
+function updateLCD(c, rates) {
+  $('lcd-cadence').textContent = c;
+  $('lcd-speed').textContent = rates.speedMph.toFixed(1);
+  $('lcd-watts').textContent = rates.w;
+  $('lcd-calhr').textContent = Math.round(rates.calPerHr);
+}
+
+// ── Table Generation ────────────────────────────────────────────────────────
+function generateTable(c, roundingName) {
+  const w = watts(c);
+  const st = speedTenths(c);
+  const rates = computeRates(c);
+  const rounding = ROUNDING[roundingName];
+  const calCfg = CAL_STEP_CONFIG[currentCalStep];
+
+  updateLCD(c, rates);
+  $('print-header').textContent = `Cadence ${c} RPM | ${rates.w} W | ${rates.speedMph.toFixed(1)} mph | ${Math.round(rates.calPerHr)} Cal/hr`;
+
+  if (w === 0 || st === 0) {
+    $('table-body').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">Cadence below minimum (20 RPM)</td></tr>';
+    return;
+  }
+
+  const distDecimals = rounding.distRound < 0.05 ? 2 : rounding.distRound < 0.5 ? 2 : 1;
+  let html = '';
+
+  for (let cal = currentCalStep; cal <= calCfg.maxCal; cal += currentCalStep) {
+    const { ticks, dist } = calToTicksDist(cal, w, st);
+    const timeSec = ticks * TICK_PERIOD;
+
+    const distRounded = roundTo(dist, rounding.distRound);
+    const timeRounded = roundTo(timeSec, rounding.timeRound);
+
+    html += `<tr>
+      <td class="col-cal">${cal}</td>
+      <td class="col-dist">${distRounded.toFixed(distDecimals)}</td>
+      <td class="col-time">${formatTime(timeRounded)}</td>
+    </tr>`;
+  }
+
+  $('table-body').innerHTML = html;
+}
+
+// ── Controls ────────────────────────────────────────────────────────────────
+const slider = $('cadence-slider');
+
+function onCadenceChange(rpm) {
+  currentCadence = rpm;
+  $('cadence-display').textContent = rpm;
+  slider.value = rpm;
+  generateTable(rpm, currentRounding);
+
+  document.querySelectorAll('#cadence-presets .preset-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.rpm) === rpm);
+  });
+}
+
+slider.addEventListener('input', () => onCadenceChange(parseInt(slider.value)));
+
+document.querySelectorAll('#cadence-presets .preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    onCadenceChange(parseInt(btn.dataset.rpm));
+  });
+});
+
+document.querySelectorAll('#calstep-btns .rounding-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentCalStep = parseInt(btn.dataset.calstep);
+    document.querySelectorAll('#calstep-btns .rounding-btn').forEach(b =>
+      b.classList.toggle('active', b === btn));
+    generateTable(currentCadence, currentRounding);
+  });
+});
+
+document.querySelectorAll('#rounding-btns .rounding-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentRounding = btn.dataset.rounding;
+    document.querySelectorAll('#rounding-btns .rounding-btn').forEach(b =>
+      b.classList.toggle('active', b === btn));
+    generateTable(currentCadence, currentRounding);
+  });
+});
+
+$('print-btn').addEventListener('click', () => window.print());
+
+// ── Init ────────────────────────────────────────────────────────────────────
+onCadenceChange(55);
+</script>
+</body>
+</html>

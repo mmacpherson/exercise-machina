@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Data (raw videos and OCR outputs)
+data/
+*_raw.jsonl
+sonnet-ocr/
+
+# Generated
+plots/
+findings.html
+*.mov
+*.mp4
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

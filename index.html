@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exercise Machina</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #4cc9f0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .container {
+    max-width: 600px;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+  }
+
+  .apps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .app-link {
+    display: block;
+    padding: 1rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .app-link:hover {
+    border-color: var(--accent);
+    background: #1e2d4a;
+  }
+
+  .app-link h2 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+
+  .app-link p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .footer {
+    margin-top: 2rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Exercise Machina</h1>
+  <p class="subtitle">Reverse-engineered Rogue Echo Bike firmware equations</p>
+  <div class="apps">
+    <a href="simulator/" class="app-link">
+      <h2>Firmware Simulator</h2>
+      <p>Glass-box view of every integer arithmetic step the firmware computes. Set cadence, watch the accumulators tick.</p>
+    </a>
+    <a href="converter/" class="app-link">
+      <h2>Conversion Table</h2>
+      <p>If your workout says 50 calories, how far is that? How long does it take? Look it up at any power level.</p>
+    </a>
+  </div>
+  <p class="footer">
+    <a href="https://github.com/mmacpherson/exercise-machina">Source on GitHub</a>
+  </p>
+</div>
+</body>
+</html>

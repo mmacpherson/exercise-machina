@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Echo Bike Firmware Simulator</title>
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/dseg7-classic/400.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/dseg7-classic/700.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #4cc9f0;
+    --accent-dim: #264653;
+    --lcd-bg: #c5cfa0;
+    --lcd-ghost: #b8c292;
+    --lcd-text: #2a2a2a;
+    --bezel: #2c2c2c;
+    --red: #ef476f;
+    --orange: #f4a261;
+    --blue: #4895ef;
+    --green: #06d6a0;
+    --decade-active: #2a4a3a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.3;
+    padding: 0.5rem 0.75rem;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .app {
+    max-width: 1400px;
+    margin: 0 auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .header .subtitle { color: var(--text-dim); font-size: 0.7rem; }
+
+  /* ── LCD Bezel ────────────────────────────────────── */
+  .bezel {
+    background: var(--bezel);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+
+  .bezel-brand {
+    text-align: center;
+    color: #999;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .lcd {
+    background: var(--lcd-bg);
+    border-radius: 6px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .lcd-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    align-items: end;
+  }
+
+  .lcd-field { text-align: center; }
+
+  .lcd-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #5a6040;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .lcd-value-wrap {
+    position: relative;
+    display: inline-block;
+    font-family: 'DSEG7 Classic', monospace;
+  }
+
+  .lcd-ghost {
+    color: var(--lcd-ghost);
+    font-size: 2.8rem;
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .lcd-value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--lcd-text);
+    font-size: 2.8rem;
+    font-weight: 700;
+  }
+
+  .lcd-unit {
+    font-family: -apple-system, sans-serif;
+    font-size: 0.7rem;
+    color: #5a6040;
+    font-weight: 600;
+  }
+
+  .lcd-divider {
+    text-align: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #5a6040;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin: 0.6rem 0;
+    border-top: 1.5px solid #9aa07a;
+    border-bottom: 1.5px solid #9aa07a;
+    padding: 3px 0;
+  }
+
+  .lcd-gauge-wrap { text-align: center; }
+
+  .gauge-svg {
+    width: 120px;
+    height: 65px;
+    display: block;
+    margin: 0 auto;
+  }
+
+  .gauge-bg { stroke: var(--lcd-ghost); }
+  .gauge-fill { stroke: var(--lcd-text); transition: stroke-dashoffset 0.1s; }
+
+  .lcd-watts-num {
+    font-family: 'DSEG7 Classic', monospace;
+    position: relative;
+    display: inline-block;
+    margin-top: -6px;
+  }
+
+  .lcd-watts-ghost { color: var(--lcd-ghost); font-size: 2.2rem; font-weight: 700; }
+  .lcd-watts-val { position: absolute; top: 0; left: 0; color: var(--lcd-text); font-size: 2.2rem; font-weight: 700; }
+
+  /* ── Cadence Controls ──────────────────────────────── */
+  .cadence-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    background: var(--surface);
+    border-radius: 6px;
+    border: 1px solid #333;
+  }
+
+  .cadence-strip input[type=range] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #333;
+    border-radius: 3px;
+    outline: none;
+  }
+
+  .cadence-strip input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  .slider-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--text-dim);
+  }
+
+  .slider-rpm {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    min-width: 4.5em;
+    text-align: right;
+  }
+
+  .presets {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .preset-btn {
+    padding: 0.15rem 0.4rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.65rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .preset-btn:hover { background: #1e3050; border-color: var(--accent); }
+  .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); }
+
+  /* ── Main: 2-column, 3-row grid ────────────────────── */
+  .main-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    grid-template-rows: auto auto 1fr;
+    gap: 0.5rem;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .main-grid > .timeline-panel {
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
+
+  .panel {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid #333;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .panel-title {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.35rem;
+  }
+
+  /* ── Glass Box (left) ──────────────────────────────── */
+  .pipelines {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .pipeline h3 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    color: var(--accent);
+  }
+
+  .step {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.65rem;
+    margin-bottom: 0.1rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .step .val { color: var(--text); font-weight: 600; }
+  .step .op { color: var(--accent); }
+  .step .result { color: var(--green); font-weight: 700; }
+  .step .loss { color: var(--red); font-size: 0.6rem; }
+
+  .lookup-table { margin-top: 0.5rem; }
+
+  .lookup-table h3 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+    color: var(--orange);
+  }
+
+  .lookup-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.6rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  .lookup-table th {
+    text-align: left;
+    padding: 0.1rem 0.3rem;
+    border-bottom: 1px solid #444;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  .lookup-table td {
+    padding: 0.1rem 0.3rem;
+    border-bottom: 1px solid #2a2a3e;
+  }
+
+  .lookup-table tr.active-decade { background: var(--decade-active); }
+  .lookup-table tr.active-decade td { color: var(--green); font-weight: 600; }
+
+  /* ── Timeline (right) ──────────────────────────────── */
+  .timeline-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workout-presets {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+  }
+
+  .workout-btn {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.65rem;
+    transition: background 0.15s;
+  }
+
+  .workout-btn:hover { border-color: var(--accent); }
+  .workout-btn.active { background: var(--accent-dim); border-color: var(--accent); }
+
+  .playback-controls {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    margin-bottom: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .play-btn {
+    padding: 0.2rem 0.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.65rem;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+
+  .play-btn.play { background: var(--green); color: #111; }
+  .play-btn.play:hover { background: #05c490; }
+  .play-btn.pause { background: var(--orange); color: #111; }
+  .play-btn.speed { background: #333; color: var(--text); }
+  .play-btn.speed:hover { background: #444; }
+  .play-btn.speed.active { background: var(--accent-dim); color: var(--accent); }
+  .play-btn.reset { background: #333; color: var(--red); }
+  .play-btn.reset:hover { background: #442; }
+
+  .progress-bar {
+    width: 100%;
+    height: 3px;
+    background: #333;
+    border-radius: 2px;
+    margin-bottom: 0.2rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.1s;
+  }
+
+  .playback-time {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 0.35rem;
+  }
+
+  .charts-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 0.35rem;
+    min-height: 0;
+  }
+
+  .chart-wrap {
+    background: rgba(0,0,0,0.2);
+    border-radius: 5px;
+    padding: 0.3rem;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart-wrap h4 {
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.15rem;
+    flex-shrink: 0;
+  }
+
+  .chart-wrap canvas {
+    width: 100% !important;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chart-full { grid-column: 1 / -1; }
+
+  .custom-schedule { margin-bottom: 0.35rem; }
+
+  .custom-schedule textarea {
+    width: 100%;
+    height: 50px;
+    background: #111;
+    color: var(--text);
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.3rem;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.65rem;
+    resize: vertical;
+  }
+
+  .custom-schedule label {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 0.15rem;
+  }
+
+  /* ── Mobile fallback ───────────────────────────────── */
+  @media (max-width: 900px) {
+    body { overflow: auto; height: auto; }
+    .main-grid { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto; overflow: visible; }
+    .main-grid > .timeline-panel { grid-column: 1; grid-row: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Echo Bike Firmware Simulator</h1>
+    <span class="subtitle">Reverse-engineered integer arithmetic — every truncation visible</span>
+  </div>
+
+  <!-- ── Main grid: 2 cols, 2 rows ──────────────────── -->
+  <div class="main-grid">
+    <!-- Row 1 left: LCD -->
+    <div class="bezel">
+      <div class="bezel-brand">Rogue</div>
+      <div class="lcd">
+        <div class="lcd-row">
+          <div class="lcd-field">
+            <div class="lcd-label">Speed</div>
+            <div class="lcd-value-wrap">
+              <span class="lcd-ghost">88.8</span>
+              <span class="lcd-value" id="lcd-speed">0.0</span>
+            </div>
+            <div class="lcd-unit">mph</div>
+          </div>
+          <div class="lcd-field lcd-gauge-wrap">
+            <div class="lcd-label">Watts</div>
+            <svg class="gauge-svg" viewBox="0 0 120 65">
+              <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" class="gauge-bg"
+                    stroke-width="7" stroke-linecap="round"/>
+              <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" class="gauge-fill"
+                    id="gauge-arc" stroke-width="7" stroke-linecap="round"
+                    stroke-dasharray="157" stroke-dashoffset="157"/>
+            </svg>
+            <div class="lcd-watts-num">
+              <span class="lcd-watts-ghost">888</span>
+              <span class="lcd-watts-val" id="lcd-watts">0</span>
+            </div>
+            <div class="lcd-unit">W</div>
+          </div>
+          <div class="lcd-field">
+            <div class="lcd-label">Cadence</div>
+            <div class="lcd-value-wrap">
+              <span class="lcd-ghost">888</span>
+              <span class="lcd-value" id="lcd-cadence">0</span>
+            </div>
+            <div class="lcd-unit">rpm</div>
+          </div>
+        </div>
+        <div class="lcd-divider">Targets</div>
+        <div class="lcd-row">
+          <div class="lcd-field">
+            <div class="lcd-label">Distance</div>
+            <div class="lcd-value-wrap">
+              <span class="lcd-ghost">88.88</span>
+              <span class="lcd-value" id="lcd-distance">0.00</span>
+            </div>
+            <div class="lcd-unit">mi</div>
+          </div>
+          <div class="lcd-field">
+            <div class="lcd-label">Time</div>
+            <div class="lcd-value-wrap">
+              <span class="lcd-ghost">88:88</span>
+              <span class="lcd-value" id="lcd-time">00:00</span>
+            </div>
+          </div>
+          <div class="lcd-field">
+            <div class="lcd-label">Calories</div>
+            <div class="lcd-value-wrap">
+              <span class="lcd-ghost">8888</span>
+              <span class="lcd-value" id="lcd-calories">0</span>
+            </div>
+            <div class="lcd-unit">Cal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cadence strip (left col, row 2) -->
+    <div class="cadence-strip">
+      <input type="range" id="cadence-slider" min="0" max="89" value="55" step="1">
+      <span class="slider-rpm"><span id="cadence-display">55</span> RPM</span>
+      <div class="presets" id="cadence-presets">
+        <button class="preset-btn" data-rpm="35">35</button>
+        <button class="preset-btn" data-rpm="50">50</button>
+        <button class="preset-btn" data-rpm="65">65</button>
+        <button class="preset-btn" data-rpm="80">80</button>
+      </div>
+    </div>
+
+    <!-- Glass Box (left col, row 3) -->
+    <div class="panel">
+      <div class="panel-title">Glass Box — Computation Trace</div>
+      <div class="pipelines">
+        <div class="pipeline" id="speed-pipeline">
+          <h3>Speed</h3>
+          <div id="speed-steps"></div>
+        </div>
+        <div class="pipeline" id="watts-pipeline">
+          <h3>Watts</h3>
+          <div id="watts-steps"></div>
+        </div>
+      </div>
+      <div class="lookup-table">
+        <h3>Watts Lookup Table</h3>
+        <table>
+          <thead>
+            <tr><th>RPM</th><th>B</th><th>N</th><th>Range</th></tr>
+          </thead>
+          <tbody id="lookup-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel timeline-panel">
+      <div class="panel-title">Timeline Simulator</div>
+      <div class="workout-presets" id="workout-presets">
+        <button class="workout-btn active" data-preset="steady">Steady</button>
+        <button class="workout-btn" data-preset="intervals">Intervals</button>
+        <button class="workout-btn" data-preset="ramp">Ramp</button>
+        <button class="workout-btn" data-preset="tabata">Tabata</button>
+        <button class="workout-btn" data-preset="custom">Custom</button>
+      </div>
+      <div class="custom-schedule" id="custom-schedule" style="display:none;">
+        <label>Cadence : Seconds (one per line)</label>
+        <textarea id="custom-input">65:30
+35:30
+65:30
+35:30</textarea>
+      </div>
+      <div class="playback-controls">
+        <button class="play-btn play" id="btn-play">&#9654; Play</button>
+        <button class="play-btn speed" data-speed="0.25">&#188;&times;</button>
+        <button class="play-btn speed" data-speed="0.5">&#189;&times;</button>
+        <button class="play-btn speed active" data-speed="1">1&times;</button>
+        <button class="play-btn speed" data-speed="5">5&times;</button>
+        <button class="play-btn speed" data-speed="20">20&times;</button>
+        <button class="play-btn speed" data-speed="0">Max</button>
+        <button class="play-btn reset" id="btn-reset">&#9632; Reset</button>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="playback-time" id="playback-time">0:00 / 0:00</div>
+      <div class="charts-grid">
+        <div class="chart-wrap">
+          <h4>Distance (mi)</h4>
+          <canvas id="chart-distance"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <h4>Calories</h4>
+          <canvas id="chart-calories"></canvas>
+        </div>
+        <div class="chart-wrap chart-full">
+          <h4>Energy Budget (cal accumulator vs thresholds)</h4>
+          <canvas id="chart-energy"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Firmware Engine ──────────────────────────────────────────────────────────
+const WATTS_B = {2:155, 3:415, 4:825, 5:1505, 6:2425, 7:3835, 8:5495};
+const WATTS_N = {2:26, 3:41, 4:68, 5:92, 6:141, 7:166, 8:211};
+const TICK_PERIOD = 1.0006;
+const CAL_K = 1195;
+const DIST_DIVISOR = 360;
+
+function speedCompute(c) {
+  const product = c * 272;
+  const exact = product / 73;
+  const tenths = Math.floor(product / 73);
+  return {
+    cadence: c,
+    cTimes272: product,
+    exact,
+    speedTenths: tenths,
+    truncLoss: exact - tenths,
+    speedMph: tenths / 10,
+  };
+}
+
+function wattsCompute(c) {
+  const d = Math.floor(c / 10);
+  const r = c % 10;
+  const B = WATTS_B[d] || 0;
+  const N = WATTS_N[d] || 0;
+  const nr = N * r;
+  const num = B + nr;
+  const exact = num / 10;
+  const w = Math.floor(num / 10);
+  return {
+    cadence: c,
+    decade: d,
+    remainder: r,
+    B, N,
+    nTimesR: nr,
+    numerator: num,
+    exact,
+    watts: w,
+    truncLoss: exact - w,
+  };
+}
+
+// ── LCD Display ──────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+
+function updateLCD(state) {
+  $('lcd-speed').textContent = state.speedMph.toFixed(1);
+  $('lcd-watts').textContent = state.watts;
+  $('lcd-cadence').textContent = state.cadence;
+  $('lcd-distance').textContent = state.distDisplay.toFixed(2);
+  $('lcd-time').textContent = formatTime(state.time);
+  $('lcd-calories').textContent = state.calDisplay;
+
+  const pct = Math.min(state.watts / 750, 1);
+  $('gauge-arc').setAttribute('stroke-dashoffset', 157 - pct * 157);
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+// ── Glass Box Panel ──────────────────────────────────────────────────────────
+function renderSpeedPipeline(s) {
+  if (s.cadence < 1) {
+    $('speed-steps').innerHTML = '<div class="step" style="color:var(--text-dim)">Set cadence &gt; 0</div>';
+    return;
+  }
+  const lossColor = s.truncLoss > 0.5 ? 'var(--red)' : 'var(--orange)';
+  $('speed-steps').innerHTML = `
+    <div class="step"><span class="val">${s.cadence}</span> <span class="op">&times;272</span> &rarr; <span class="val">${s.cTimes272}</span></div>
+    <div class="step"><span class="val">${s.cTimes272}</span> <span class="op">&divide;73</span> &rarr; <span class="val">${s.exact.toFixed(2)}</span></div>
+    <div class="step"><span class="op">&lfloor;floor&rfloor;</span> &rarr; <span class="result">${s.speedTenths}</span> tenths</div>
+    <div class="step"><span class="loss" style="color:${lossColor}">loss: ${s.truncLoss.toFixed(4)}</span></div>
+    <div class="step"><span class="result">${s.speedTenths}</span> <span class="op">&divide;10</span> &rarr; <span class="result">${s.speedMph.toFixed(1)} mph</span></div>
+  `;
+}
+
+function renderWattsPipeline(w) {
+  if (w.cadence < 20) {
+    $('watts-steps').innerHTML = '<div class="step" style="color:var(--text-dim)">Cadence &lt; 20: 0 W</div>';
+    return;
+  }
+  const lossColor = w.truncLoss > 0.5 ? 'var(--red)' : 'var(--orange)';
+  $('watts-steps').innerHTML = `
+    <div class="step"><span class="val">${w.cadence}</span> <span class="op">&divide;10</span> &rarr; d=<span class="val">${w.decade}</span> r=<span class="val">${w.remainder}</span></div>
+    <div class="step">B[${w.decade}]=<span class="val">${w.B}</span> N[${w.decade}]=<span class="val">${w.N}</span></div>
+    <div class="step"><span class="val">${w.N}</span><span class="op">&times;</span><span class="val">${w.remainder}</span> = <span class="val">${w.nTimesR}</span></div>
+    <div class="step"><span class="val">${w.B}</span>+<span class="val">${w.nTimesR}</span> = <span class="val">${w.numerator}</span></div>
+    <div class="step"><span class="val">${w.numerator}</span> <span class="op">&divide;10</span> &rarr; <span class="val">${w.exact.toFixed(1)}</span></div>
+    <div class="step"><span class="op">&lfloor;floor&rfloor;</span> &rarr; <span class="result">${w.watts} W</span></div>
+    <div class="step"><span class="loss" style="color:${lossColor}">loss: ${w.truncLoss.toFixed(1)}</span></div>
+  `;
+}
+
+function renderLookupTable(activeDecade) {
+  const decades = [2, 3, 4, 5, 6, 7, 8];
+  const labels = ['20–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80–89'];
+  let html = '';
+  decades.forEach((d, i) => {
+    const B = WATTS_B[d];
+    const N = WATTS_N[d];
+    const lo = Math.floor(B / 10);
+    const hi = Math.floor((B + 9 * N) / 10);
+    const cls = d === activeDecade ? 'active-decade' : '';
+    html += `<tr class="${cls}"><td>${labels[i]}</td><td>${B}</td><td>${N}</td><td>${lo}–${hi} W</td></tr>`;
+  });
+  $('lookup-body').innerHTML = html;
+}
+
+// ── Cadence Control ──────────────────────────────────────────────────────────
+const slider = $('cadence-slider');
+const cadenceDisplay = $('cadence-display');
+
+function onCadenceChange(rpm) {
+  cadenceDisplay.textContent = rpm;
+  const s = speedCompute(rpm);
+  const w = wattsCompute(rpm);
+
+  updateLCD({
+    speedMph: s.speedMph,
+    watts: w.watts,
+    cadence: rpm,
+    distDisplay: 0,
+    time: 0,
+    calDisplay: 0,
+  });
+
+  renderSpeedPipeline(s);
+  renderWattsPipeline(w);
+  renderLookupTable(w.decade);
+
+  document.querySelectorAll('#cadence-presets .preset-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.rpm) === rpm);
+  });
+}
+
+slider.addEventListener('input', () => onCadenceChange(parseInt(slider.value)));
+
+document.querySelectorAll('#cadence-presets .preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    slider.value = btn.dataset.rpm;
+    onCadenceChange(parseInt(btn.dataset.rpm));
+  });
+});
+
+// ── Workout Presets ──────────────────────────────────────────────────────────
+const WORKOUTS = {
+  steady:    () => [[50, 300]],
+  intervals: () => {
+    const schedule = [];
+    for (let i = 0; i < 8; i++) { schedule.push([65, 30], [35, 30]); }
+    return schedule;
+  },
+  ramp: () => {
+    const schedule = [];
+    for (let c = 30; c <= 80; c += 10) schedule.push([c, 60]);
+    return schedule;
+  },
+  tabata: () => {
+    const schedule = [];
+    for (let i = 0; i < 8; i++) { schedule.push([75, 20], [0, 10]); }
+    return schedule;
+  },
+  custom: () => {
+    const lines = $('custom-input').value.trim().split('\n');
+    return lines.map(l => {
+      const [c, s] = l.split(':').map(Number);
+      return [c || 0, s || 0];
+    }).filter(([, s]) => s > 0);
+  },
+};
+
+let activePreset = 'steady';
+
+document.querySelectorAll('#workout-presets .workout-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activePreset = btn.dataset.preset;
+    document.querySelectorAll('#workout-presets .workout-btn').forEach(b =>
+      b.classList.toggle('active', b === btn));
+    $('custom-schedule').style.display = activePreset === 'custom' ? '' : 'none';
+    resetPlayback();
+  });
+});
+
+// ── Chart.js Setup ───────────────────────────────────────────────────────────
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: false,
+  scales: {
+    x: {
+      type: 'linear',
+      title: { display: true, text: 'Time (s)', color: '#888', font: { size: 9 } },
+      ticks: { color: '#555', font: { size: 8 } },
+      grid: { color: '#222' },
+    },
+    y: {
+      ticks: { color: '#555', font: { size: 8 } },
+      grid: { color: '#222' },
+    },
+  },
+  plugins: { legend: { labels: { color: '#aaa', font: { size: 9 }, boxWidth: 12 } } },
+};
+
+const distChart = new Chart($('chart-distance'), {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'Exact', data: [], borderColor: '#666', borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
+      { label: 'Display', data: [], borderColor: '#4895ef', borderWidth: 2, pointRadius: 0, stepped: true },
+    ],
+  },
+  options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, title: { display: true, text: 'mi', color: '#888', font: { size: 9 } } } } },
+});
+
+const calChart = new Chart($('chart-calories'), {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'Exact', data: [], borderColor: '#666', borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
+      { label: 'Display', data: [], borderColor: '#f4a261', borderWidth: 2, pointRadius: 0, stepped: true },
+    ],
+  },
+  options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, title: { display: true, text: 'Cal', color: '#888', font: { size: 9 } } } } },
+});
+
+const energyChart = new Chart($('chart-energy'), {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'cal_acc', data: [], borderColor: '#4cc9f0', borderWidth: 2, pointRadius: 0 },
+    ],
+  },
+  options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, title: { display: true, text: 'Accumulator', color: '#888', font: { size: 9 } } } } },
+});
+
+// ── Timeline Playback ────────────────────────────────────────────────────────
+let simState = null;
+let playing = false;
+let playSpeed = 1;
+let animFrame = null;
+let lastFrameTime = null;
+let tickDebt = 0; // fractional ticks owed
+
+function buildSchedule() {
+  return WORKOUTS[activePreset]();
+}
+
+function totalDuration(schedule) {
+  return schedule.reduce((sum, [, dur]) => sum + dur, 0);
+}
+
+function expandSchedule(schedule) {
+  const ticks = [];
+  for (const [cad, dur] of schedule) {
+    const n = Math.floor(dur / TICK_PERIOD);
+    for (let i = 0; i < n; i++) ticks.push(cad);
+  }
+  return ticks;
+}
+
+function resetPlayback() {
+  playing = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = null;
+  $('btn-play').innerHTML = '&#9654; Play';
+  $('btn-play').classList.remove('pause');
+  $('btn-play').classList.add('play');
+  $('progress-fill').style.width = '0%';
+
+  const schedule = buildSchedule();
+  const dur = totalDuration(schedule);
+  $('playback-time').textContent = `0:00 / ${formatTime(dur)}`;
+
+  simState = {
+    ticks: expandSchedule(schedule),
+    tickIdx: 0,
+    distAcc: 0,
+    calAcc: 0,
+    time: 0,
+    totalDuration: dur,
+    distExact: [],
+    distDisplay: [],
+    calExact: [],
+    calDisplay: [],
+    energyData: [],
+    thresholds: [],
+    lastCalDisplay: -1,
+  };
+
+  distChart.data.datasets[0].data = simState.distExact;
+  distChart.data.datasets[1].data = simState.distDisplay;
+  calChart.data.datasets[0].data = simState.calExact;
+  calChart.data.datasets[1].data = simState.calDisplay;
+  energyChart.data.datasets = [
+    { label: 'cal_acc', data: simState.energyData, borderColor: '#4cc9f0', borderWidth: 2, pointRadius: 0 },
+  ];
+  simState.thresholds = [];
+
+  distChart.update();
+  calChart.update();
+  energyChart.update();
+}
+
+function simulateTick() {
+  const st = simState;
+  if (st.tickIdx >= st.ticks.length) return false;
+
+  const cad = st.ticks[st.tickIdx];
+  const s = speedCompute(cad);
+  const w = wattsCompute(cad);
+
+  st.distAcc += s.speedTenths;
+  st.calAcc += w.watts;
+  st.time += TICK_PERIOD;
+  st.tickIdx++;
+
+  const distDisplay = Math.floor(st.distAcc / DIST_DIVISOR) / 100;
+  const calDisplay = Math.floor(st.calAcc / CAL_K);
+  const distExact = st.distAcc / DIST_DIVISOR / 100;
+  const calExact = st.calAcc / CAL_K;
+
+  const t = st.time;
+  st.distExact.push({ x: t, y: distExact });
+  st.distDisplay.push({ x: t, y: distDisplay });
+  st.calExact.push({ x: t, y: calExact });
+  st.calDisplay.push({ x: t, y: calDisplay });
+  st.energyData.push({ x: t, y: st.calAcc });
+
+  if (calDisplay !== st.lastCalDisplay && calDisplay > 0) {
+    st.thresholds.push(calDisplay * CAL_K);
+    st.lastCalDisplay = calDisplay;
+  }
+
+  updateLCD({
+    speedMph: s.speedMph,
+    watts: w.watts,
+    cadence: cad,
+    distDisplay,
+    time: st.time,
+    calDisplay,
+  });
+
+  slider.value = cad;
+  cadenceDisplay.textContent = cad;
+  renderSpeedPipeline(s);
+  renderWattsPipeline(w);
+  renderLookupTable(w.decade);
+
+  return true;
+}
+
+function updateCharts() {
+  const st = simState;
+
+  const thresholdDatasets = st.thresholds.map((val, i) => ({
+    label: i === 0 ? 'Cal boundary' : '',
+    data: [{ x: 0, y: val }, { x: st.time, y: val }],
+    borderColor: 'rgba(239,71,111,0.3)',
+    borderWidth: 1,
+    borderDash: [3, 3],
+    pointRadius: 0,
+  }));
+
+  energyChart.data.datasets = [
+    { label: 'cal_acc', data: st.energyData, borderColor: '#4cc9f0', borderWidth: 2, pointRadius: 0 },
+    ...thresholdDatasets,
+  ];
+
+  distChart.update();
+  calChart.update();
+  energyChart.update();
+
+  const pct = st.totalDuration > 0 ? (st.time / st.totalDuration) * 100 : 0;
+  $('progress-fill').style.width = Math.min(pct, 100) + '%';
+  $('playback-time').textContent = `${formatTime(st.time)} / ${formatTime(st.totalDuration)}`;
+}
+
+function playLoop(timestamp) {
+  if (!playing || !simState) return;
+
+  // Max speed: process all remaining ticks at once
+  if (playSpeed === 0) {
+    let active = true;
+    while (active) active = simulateTick();
+    updateCharts();
+    playing = false;
+    $('btn-play').innerHTML = '&#9654; Play';
+    $('btn-play').classList.remove('pause');
+    $('btn-play').classList.add('play');
+    return;
+  }
+
+  // Time-based pacing via fractional tick accumulator
+  if (lastFrameTime === null) { lastFrameTime = timestamp; }
+  const elapsedMs = timestamp - lastFrameTime;
+  lastFrameTime = timestamp;
+
+  // Accumulate fractional ticks: at 1x, 1 tick per real second
+  tickDebt += (elapsedMs / 1000) * playSpeed / TICK_PERIOD;
+  const ticksToAdvance = Math.floor(tickDebt);
+  tickDebt -= ticksToAdvance;
+
+  let active = true;
+  for (let i = 0; i < ticksToAdvance && active; i++) {
+    active = simulateTick();
+  }
+
+  if (ticksToAdvance > 0) updateCharts();
+
+  if (active) {
+    animFrame = requestAnimationFrame(playLoop);
+  } else {
+    playing = false;
+    $('btn-play').innerHTML = '&#9654; Play';
+    $('btn-play').classList.remove('pause');
+    $('btn-play').classList.add('play');
+  }
+}
+
+$('btn-play').addEventListener('click', () => {
+  if (!simState) resetPlayback();
+
+  if (simState.tickIdx >= simState.ticks.length) {
+    resetPlayback();
+  }
+
+  playing = !playing;
+  if (playing) {
+    lastFrameTime = null;
+    tickDebt = 0;
+    $('btn-play').innerHTML = '&#10074;&#10074; Pause';
+    $('btn-play').classList.remove('play');
+    $('btn-play').classList.add('pause');
+    animFrame = requestAnimationFrame(playLoop);
+  } else {
+    $('btn-play').innerHTML = '&#9654; Play';
+    $('btn-play').classList.remove('pause');
+    $('btn-play').classList.add('play');
+    if (animFrame) cancelAnimationFrame(animFrame);
+  }
+});
+
+$('btn-reset').addEventListener('click', resetPlayback);
+
+document.querySelectorAll('.play-btn.speed').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playSpeed = parseFloat(btn.dataset.speed);
+    document.querySelectorAll('.play-btn.speed').forEach(b =>
+      b.classList.toggle('active', b === btn));
+  });
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+onCadenceChange(55);
+slider.value = 55;
+resetPlayback();
+</script>
+</body>
+</html>
