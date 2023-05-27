@@ -1,0 +1,12 @@
+# opencv-python
+# opencv-python-headless
+# pytesseract
+# easyocr
+# imageio[pyav]
+nb-black
+openmim
+pandas
+plotnine
+python-dotenv
+torch
+torchvision
