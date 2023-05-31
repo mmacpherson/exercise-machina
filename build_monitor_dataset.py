@@ -53,10 +53,6 @@ def paddle_results_to_df(result):
     return df
 
 
-def make_polygons_2d(polygons):
-    return np.concatenate(polygons).reshape(-1, 2).astype(np.float32)
-
-
 def warp_perspective(img, angle=0, scale=1, tx=0, ty=0):
     # clear_output(wait=True)
 
@@ -116,6 +112,10 @@ def best_match(text):
     # calculate the best match out of the possible markers
     best = process.extractOne(text, markers)
     return best[1] if best else 0
+
+
+def make_polygons_2d(polygons):
+    return np.concatenate(polygons).reshape(-1, 2).astype(np.float32)
 
 
 def super_bounding_box(xy):
@@ -366,7 +366,7 @@ class BuildMonitorDatasetFlow(FlowSpec):
 
     @step
     def start(self):
-        self.working_dir = tempfile.mkdtemp()
+        self.working_dir = tempfile.mkdtemp(dir="/bucket/exercise-machina")
         print(f"{self.working_dir=}")
         self.next(self.unpack_video_to_frames)
 

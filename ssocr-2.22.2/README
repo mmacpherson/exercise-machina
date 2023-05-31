@@ -1,0 +1,39 @@
+Seven Segment Optical Character Recognition or ssocr for short is a
+program to recognize digits of a seven segment display. An image of one
+row of digits is used for input and the recognized number is written
+to the standard output. The program runs on GNU/Linux (some GNU/Linux
+distributions provide an ssocr package), FreeBSD (available as a port
+as well), Mac OS X (Homebrew can be used to install the library Imlib2,
+used by ssocr), and even on Windows (using Cygwin). ssocr should work
+on any UNIX-like or POSIX compatible operating system.
+
+Unless ssocr is installed via some packaging system, e.g. from a GNU/Linux
+distribution, it is distributed in source form and needs to be built
+before it can be used. See the INSTALL file for instructions on how to
+build ssocr.
+
+A manual for ssocr is available in the form of a man page named ssocr.1,
+you can read it using "make ssocr.1 && man ./ssocr.1" (without the
+quotes).
+
+You can get the current ssocr version from the official ssocr website:
+https://www.unix-ag.uni-kl.de/~auerswal/ssocr/
+(Links to ssocr should point to the official website, not to a convenience
+copy of the development repository, e.g. on GitHub.)
+
+I am usually quicker to reply to emails than to GitHub issues.  But
+increasingly Google blocks emails sent by me, so if you do not receive
+an answer from me, consider opening a GitHub issue.  Perhaps your email
+provider does not allow you to read my solutions to your ssocr problems.
+
+Especially if you are using an @gmail.com or @google.com address, or use
+your own domain with Google email services, and you do not receive an
+answer to an email, it is most likely that Google blocked that answer.
+In that case, you can either follow up with a GitHub issue or use a
+better email provider than Google.  The only problematic email provider
+I know of is Google.
+
+Every file in this repository or archive is licensed under the GNU
+General Public License version 3 (or later), unless another license is
+explicitly given in the file itself. This includes all documentation
+files and the Makefile, and all other files.

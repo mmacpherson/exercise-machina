@@ -1,0 +1,98 @@
+Building and Installing
+-----------------------
+To build ssocr, type:
+
+    make
+
+You can use ssocr from the directory you built it, no installation required.
+If you want to install it to your system, type:
+
+    make install
+
+To change the default install location of /usr/local to /usr, type:
+
+    make PREFIX=/usr install
+
+You have to keep track of the installed files yourself, if you want to
+remove them later on.
+
+If you prefer to install a .deb package for easier removal, you can
+build a .deb package by typing:
+
+    make selfdeb
+
+Prerequisites
+-------------
+- A system sufficiently compatible to POSIX and GNU.
+- POSIX utilities: chmod, printf, sh, sed (or compatible)
+- GNU utilities: date, gzip, install, tar (or compatible)
+- Other utilities: bzip2
+- Imlib2 shared library and development headers. On a Debian or Ubuntu system
+  they are provided by the packages libimlib2 and libimlib2-dev.
+  On Mac OS X you can use 'brew' to install Imlib2: brew install imlib2
+  (see https://brew.sh/)
+- pkg-config or imlib2-config (part of libimlib2-dev on Debian or Ubuntu)
+  [Imlib2 version 1.7.5 dropped the imlib2-config program in favor of using
+   pkg-config]
+- Imlib2 requires the X11/Xlib.h header and links against some X11 libraries,
+  at least on GNU/Linux with X11 GUI, thus X11 shared libraries and development
+  headers are required for ssocr, too, although ssocr does not use X11 itself
+- Build tools, e.g. build-essential on a Debian (or Ubuntu) system.
+- To build a .deb package, you probably need the debhelper package.
+
+Additional Makefile Targets
+---------------------------
+- clean:              remove generated files except packages
+- distclean:          remove all generated files
+- tar:                create a bzip2 compressed tar-ball of the sources for
+                      distribution
+- ssocr-manpage.html: create HTML version of man page
+- selfdeb:            create a package file in .deb format that can be
+                      installed on Debian-like distributions
+
+Platform Specifics
+------------------
+- I am testing on GNU/Linux only
+- I am testing with GCC only
+- On Windows, you may need to rename the binary from ssocr to ssocr.exe
+- On macOS, you may need to specify the X11 include path manually.
+  The following have been reported as working on macOS at some time:
+  - make CPPFLAGS=-I/opt/X11/include
+  - make CPPFLAGS=-I/Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers/
+
+C Compiler Problems:
+--------------------
+Some users have reported problems with their C compilers.  If you are not
+using a stable release version of GCC, you may need to disable security
+features supposed to be provided by the C compiler, but broken in your
+specific compiler version.  To do this, remove the following from the
+CFLAGS definition in the Makefile:
+
+    -D_FORTIFY_SOURCE=2 -fstack-protector-all
+
+If you need to do this to compile ssocr, please consider reporting the issue
+to your source for your C compiler (e.g., vendor or distribution).
+
+Another problem can be the introduction of new compiler warnings.
+Some of those are prone to false positives, and this problem does occur
+for stable GCC releases as well.  Because of this I have removed -Werror
+and -pedantic-errors from ssocr's CFLAGS.
+
+If you suspect that your C compiler has problems with the ssocr source code,
+you can use the minimal CFLAGS definition given below:
+
+    CFLAGS := $(shell imlib2-config --cflags)
+
+You can do this by commenting out the default CFLAGS definition and removing
+the comment sign in front of the minimal CFLAGS definition in the Makefile.
+
+Website
+-------
+You can get the current ssocr version from the official ssocr website:
+https://www.unix-ag.uni-kl.de/~auerswal/ssocr/
+
+Third Party Packages
+--------------------
+There exist third party packaging efforts for e.g. GNU/Linux distributions
+and FreeBSD. Thus you can search the packaging system of your distribution
+for an ssocr package.
