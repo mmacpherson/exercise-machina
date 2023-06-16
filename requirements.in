@@ -4,9 +4,12 @@
 # easyocr
 # imageio[pyav]
 nb-black
-openmim
+# openmim
 pandas
-plotnine
-python-dotenv
-torch
-torchvision
+# plotnine
+# python-dotenv
+# torch
+# torchvision
+metaflow
+pillow
+fuzzywuzzy

@@ -9,11 +9,14 @@ import subprocess
 import sys
 import tempfile
 
-import cv2
+# import cv2
 import numpy as np
 import pandas as pd
 import scipy.stats
-import sklearn.cluster
+
+import libem
+
+# import sklearn.cluster
 from fuzzywuzzy import fuzz, process
 from metaflow import FlowSpec, Parameter, step
 from paddleocr import PaddleOCR
@@ -43,25 +46,15 @@ def bbox_angle(bbox):
 # im_show.save("result.jpg")
 
 
-def paddle_results_to_df(result):
-    df = pd.DataFrame(result, columns=["bbox", "inference"])
-    df[["inference_text", "inference_score"]] = pd.DataFrame(
-        df["inference"].tolist(), index=df.index
-    )
+# def warp_perspective(img, angle=0, scale=1, tx=0, ty=0):
+#     # clear_output(wait=True)
 
-    df.drop(columns="inference")
-    return df
+#     rows, cols, _ = img.shape
+#     center = (cols // 2, rows // 2)
+#     rotation_matrix = cv2.getRotationMatrix2D(center, angle, scale)
+#     rotation_matrix[:, 2] += [tx, ty]
 
-
-def warp_perspective(img, angle=0, scale=1, tx=0, ty=0):
-    # clear_output(wait=True)
-
-    rows, cols, _ = img.shape
-    center = (cols // 2, rows // 2)
-    rotation_matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    rotation_matrix[:, 2] += [tx, ty]
-
-    return cv2.warpAffine(img, rotation_matrix, (cols, rows))
+#     return cv2.warpAffine(img, rotation_matrix, (cols, rows))
 
 
 def crop_image(image, bbox):
@@ -143,26 +136,26 @@ def process_group(group):
     }
 
 
-def resize_image(image, width):
-    """
-    Resize an image (in numpy representation) to a given width while preserving the aspect ratio.
+# def resize_image(image, width):
+#     """
+#     Resize an image (in numpy representation) to a given width while preserving the aspect ratio.
 
-    Args:
-    - image (numpy.ndarray): The input image in numpy format (height, width, channels)
-    - width (int): The desired width of the resized image
+#     Args:
+#     - image (numpy.ndarray): The input image in numpy format (height, width, channels)
+#     - width (int): The desired width of the resized image
 
-    Returns:
-    - resized_image (numpy.ndarray): The resized image
-    """
-    original_height, original_width = image.shape[:2]
-    aspect_ratio = float(original_height) / float(original_width)
-    new_height = int(width * aspect_ratio)
+#     Returns:
+#     - resized_image (numpy.ndarray): The resized image
+#     """
+#     original_height, original_width = image.shape[:2]
+#     aspect_ratio = float(original_height) / float(original_width)
+#     new_height = int(width * aspect_ratio)
 
-    resized_image = cv2.resize(
-        image, (width, new_height), interpolation=cv2.INTER_LINEAR
-    )
+#     resized_image = cv2.resize(
+#         image, (width, new_height), interpolation=cv2.INTER_LINEAR
+#     )
 
-    return resized_image
+#     return resized_image
 
 
 def save_numpy_image_to_png(image, file_path):
@@ -366,30 +359,31 @@ class BuildMonitorDatasetFlow(FlowSpec):
 
     @step
     def start(self):
-        self.working_dir = tempfile.mkdtemp(dir="/bucket/exercise-machina")
-        print(f"{self.working_dir=}")
+        self.working_dir = tempfile.mkdtemp()
+        print(f"{self.working_dir}")
         self.next(self.unpack_video_to_frames)
 
     @step
     def unpack_video_to_frames(self):
         self.frames_dir = f"{self.working_dir}/frames"
-        subprocess.run(
-            [
-                "./extract-frames.sh",
-                self.video_file,
-                self.frames_dir,
-                self.start_time,
-                str(self.duration_seconds),
-                self.frame_template,
-            ]
+
+        args = (
+            self.video_file,
+            self.frames_dir,
+            self.start_time,
+            str(self.duration_seconds),
+            self.frame_template,
         )
+
+        # Called for side-effect, dumps files to provided dir.
+        libem.unpack_video_to_frames(args)
 
         self.all_frames = glob.glob(f"{self.frames_dir}/*.png")
         self.next(self.text_detect_phase1)
 
     @step
     def text_detect_phase1(self):
-        self.phase1_dir = f"{self.working_dir}/phase1-detection"
+        # self.phase1_dir = f"{self.working_dir}/phase1-detection"
         # ocr = MMOCRInferencer(det=self.mmocr_detector, rec=self.mmocr_recognizer)
 
         # _unused = ocr(
@@ -402,124 +396,118 @@ class BuildMonitorDatasetFlow(FlowSpec):
         # Paddleocr supports Chinese, English, French, German, Korean and Japanese.
         # You can set the parameter `lang` as `ch`, `en`, `fr`, `german`, `korean`, `japan`
         # to switch the language model in order.
-        ocr = PaddleOCR(
-            use_angle_cls=True, lang="en"
-        )  # need to run only once to download and load model into memory
 
-        results = []
-        for frame in self.all_frames:
-            result = paddle_results_to_df(ocr.ocr(frame, cls=True)[0]).assign(
-                frame=frame
-            )
-            results.append(result)
+        self.phase_1_detection_results = libem.ocr_frames(self.all_frames)
 
-        self.phase_1_detection_results = pd.concat(results).reset_index(drop=True)
-
-        self.next(self.postprocess_phase1_results)
-
-    @step
-    def postprocess_phase1_results(self):
-        markers = {"SPEED", "WATTS", "CADENCE", "CALORIES", "TARGETS", "DISTANCE"}
-
-        # FIXFIX: Feed in parameters, there's hardcoding occurring in the fns
-        # underneath here.
-        records = []
-        for fg, sdf in self.phase_1_detection_results.groupby("frame"):
-            # Defeated by pandas here bc I couldn't figure out how to assign a
-            # list-type value to a single-row df. Fell back to for loop.
-            records.append(dict(frame=fg) | process_group(sdf))
-
-        self.phase_1_results = pd.DataFrame.from_records(records).assign(
-            crop_left=lambda f: rollmin(f.left),
-            crop_right=lambda f: rollmax(f.right),
-            crop_top=lambda f: rollmin(f.top),
-            crop_bottom=lambda f: rollmax(f.bottom),
-        )
-
-        self.next(self.reprocess_frames)
-
-    @step
-    def reprocess_frames(self):
-        self.post_frames_dir = f"{self.working_dir}/postprocessed-frames"
-        os.makedirs(self.post_frames_dir, exist_ok=True)
-        for rec in self.phase_1_results.fillna(method="backfill").itertuples():
-            img = Image.open(rec.frame)
-            crop_left, crop_right, crop_top, crop_bottom = (
-                rec.crop_left,
-                rec.crop_right,
-                rec.crop_top,
-                rec.crop_bottom,
-            )
-            crop_width = abs(crop_left - crop_right)
-            crop_height = abs(crop_top - crop_bottom)
-            crop_right += int(round(crop_width * 0.1))
-            crop_bottom += int(round(crop_height * 0.5))
-            cropped_img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
-            resize_height = int(
-                cropped_img.height * (rec.resize_width / cropped_img.width)
-            )
-            resized_img = cropped_img.resize(
-                (rec.resize_width, resize_height), Image.LANCZOS
-            )
-            rotated_img = resized_img.rotate(rec.angle, Image.BICUBIC)
-            rotated_img.save(f"{self.post_frames_dir}/{os.path.basename(rec.frame)}")
-
-        self.next(self.text_detect_phase2)
-
-    @step
-    def text_detect_phase2(self):
-        self.phase2_dir = f"{self.working_dir}/phase2-detection"
-
-        ocr = PaddleOCR(
-            use_angle_cls=True, lang="en"
-        )  # need to run only once to download and load model into memory
-
-        results = []
-        for frame in self.all_frames:
-            frame = f"{self.post_frames_dir}/{os.path.basename(frame)}"
-            print(frame)
-            result = paddle_results_to_df(ocr.ocr(frame, cls=True)[0]).assign(
-                frame=frame
-            )
-            results.append(result)
-
-        self.phase_2_detection_results = pd.concat(results).reset_index(drop=True)
-
-        # ocr = MMOCRInferencer(det=self.mmocr_detector, rec=self.mmocr_recognizer)
-        # _unused = ocr(
-        #     self.post_frames_dir,
-        #     batch_size=self.mmocr_batch_size,
-        #     out_dir=self.phase2_dir,
-        #     save_pred=True,
-        # )
-        self.next(self.postprocess_phase2_results)
-
-    @step
-    def postprocess_phase2_results(self):
-        df = self.phase_2_detection_results.assign(
-            frame=lambda f: [os.path.basename(e) for e in f.frame],
-            bbox=lambda f: [np.array(e) for e in f.bbox],
-        )
-        df.info()
-        print([type(e) for e in df.bbox])
-
-        df = (
-            df.groupby("frame")
-            .apply(process_group_2)
-            .reset_index()
-            .drop(columns="level_1")
-            .sort_values(["frame", "box_id", "belowness_score"])
-            .assign(
-                is_duplicate=lambda f: f.duplicated(["frame", "box_id"], keep="first"),
-            )
-        )
-
-        df.loc[df.is_duplicate, ["inference_text", "inference_score"]] = np.nan
-
-        self.ocr_df = df
-        self.ocr_df.to_csv("ocr.csv", index=False)
-
+        # self.next(self.postprocess_phase1_results)
         self.next(self.end)
+
+    # @step
+    # def postprocess_phase1_results(self):
+    #     markers = {"SPEED", "WATTS", "CADENCE", "CALORIES", "TARGETS", "DISTANCE"}
+
+    #     # FIXFIX: Feed in parameters, there's hardcoding occurring in the fns
+    #     # underneath here.
+    #     records = []
+    #     for fg, sdf in self.phase_1_detection_results.groupby("frame"):
+    #         # Defeated by pandas here bc I couldn't figure out how to assign a
+    #         # list-type value to a single-row df. Fell back to for loop.
+    #         record = dict(frame=fg)
+    #         record.update(process_group(sdf))
+
+    #         records.append(record)
+
+    #     self.phase_1_results = pd.DataFrame.from_records(records).assign(
+    #         crop_left=lambda f: rollmin(f.left),
+    #         crop_right=lambda f: rollmax(f.right),
+    #         crop_top=lambda f: rollmin(f.top),
+    #         crop_bottom=lambda f: rollmax(f.bottom),
+    #     )
+
+    #     self.next(self.reprocess_frames)
+
+    # @step
+    # def reprocess_frames(self):
+    #     self.post_frames_dir = f"{self.working_dir}/postprocessed-frames"
+    #     os.makedirs(self.post_frames_dir, exist_ok=True)
+    #     for rec in self.phase_1_results.fillna(method="backfill").itertuples():
+    #         img = Image.open(rec.frame)
+    #         crop_left, crop_right, crop_top, crop_bottom = (
+    #             rec.crop_left,
+    #             rec.crop_right,
+    #             rec.crop_top,
+    #             rec.crop_bottom,
+    #         )
+    #         crop_width = abs(crop_left - crop_right)
+    #         crop_height = abs(crop_top - crop_bottom)
+    #         crop_right += int(round(crop_width * 0.1))
+    #         crop_bottom += int(round(crop_height * 0.5))
+    #         cropped_img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
+    #         resize_height = int(
+    #             cropped_img.height * (rec.resize_width / cropped_img.width)
+    #         )
+    #         resized_img = cropped_img.resize(
+    #             (rec.resize_width, resize_height), Image.LANCZOS
+    #         )
+    #         rotated_img = resized_img.rotate(rec.angle, Image.BICUBIC)
+    #         rotated_img.save(f"{self.post_frames_dir}/{os.path.basename(rec.frame)}")
+
+    #     self.next(self.text_detect_phase2)
+
+    # @step
+    # def text_detect_phase2(self):
+    #     self.phase2_dir = f"{self.working_dir}/phase2-detection"
+
+    #     ocr = PaddleOCR(
+    #         use_angle_cls=True, lang="en"
+    #     )  # need to run only once to download and load model into memory
+
+    #     results = []
+    #     for frame in self.all_frames:
+    #         frame = f"{self.post_frames_dir}/{os.path.basename(frame)}"
+    #         print(frame)
+    #         result = paddle_results_to_df(ocr.ocr(frame, cls=True)[0]).assign(
+    #             frame=frame
+    #         )
+    #         results.append(result)
+
+    #     self.phase_2_detection_results = pd.concat(results).reset_index(drop=True)
+
+    #     # ocr = MMOCRInferencer(det=self.mmocr_detector, rec=self.mmocr_recognizer)
+    #     # _unused = ocr(
+    #     #     self.post_frames_dir,
+    #     #     batch_size=self.mmocr_batch_size,
+    #     #     out_dir=self.phase2_dir,
+    #     #     save_pred=True,
+    #     # )
+    #     self.next(self.postprocess_phase2_results)
+
+    # @step
+    # def postprocess_phase2_results(self):
+    #     df = self.phase_2_detection_results.assign(
+    #         frame=lambda f: [os.path.basename(e) for e in f.frame],
+    #         bbox=lambda f: [np.array(e) for e in f.bbox],
+    #     )
+    #     df.info()
+    #     print([type(e) for e in df.bbox])
+
+    #     df = (
+    #         df.groupby("frame")
+    #         .apply(process_group_2)
+    #         .reset_index()
+    #         .drop(columns="level_1")
+    #         .sort_values(["frame", "box_id", "belowness_score"])
+    #         .assign(
+    #             is_duplicate=lambda f: f.duplicated(["frame", "box_id"], keep="first"),
+    #         )
+    #     )
+
+    #     df.loc[df.is_duplicate, ["inference_text", "inference_score"]] = np.nan
+
+    #     self.ocr_df = df
+    #     self.ocr_df.to_csv("ocr.csv", index=False)
+
+    #     self.next(self.end)
 
     @step
     def end(self):
